@@ -8,7 +8,7 @@
 import Combine
 import SwiftUI
 
-// N.B. These need to be classes to avoid copy-by-value
+// N.B. These need to be classes to avoid copy-by-value.
 class ListItem: Identifiable, Hashable {
 
     public var id = UUID()
@@ -27,14 +27,9 @@ class ListItem: Identifiable, Hashable {
     }
 }
 
-func random() -> String {
-//    print("creating item")
-    return UUID().uuidString
-}
-
 func items() -> [ListItem] {
-    let range = 0..<10
-    let items = range.map { _ in ListItem(title: random()) }
+    let range = 0..<100000
+    let items = range.map { _ in ListItem(title: UUID().uuidString) }
     return items
 }
 
@@ -78,6 +73,7 @@ class LazyFilter<T>: ObservableObject where T: Hashable {
         __sortDescriptor = Published(initialValue: initialSortDescriptor)
         subscription = items
             .combineLatest($_filter, $_sortDescriptor)
+            .debounce(for: 0.1, scheduler: DispatchQueue.main)
             .receive(on: queue)
             .map { items, filter, sortDescriptor in
                 print("regenerating list")
@@ -112,12 +108,10 @@ extension SortIdentifier {
         switch self {
         case .titleAscending:
             return { lhs, rhs in
-                print("ascending compare")
                 return lhs.title.localizedCompare(rhs.title) == .orderedAscending
             }
         case .titleDescending:
             return { lhs, rhs in
-                print("descending compare")
                 return lhs.title.localizedCompare(rhs.title) == .orderedDescending
             }
         }
@@ -143,6 +137,10 @@ struct ListView: View {
         }, initialSortDescriptor: SortIdentifier.titleAscending.sortDescriptor))
     }
 
+    var columns: [GridItem] = [
+        GridItem(.flexible(minimum: 0, maximum: .infinity))
+    ]
+
     var body: some View {
         VStack {
             HStack {
@@ -158,9 +156,14 @@ struct ListView: View {
                 }
             }
             TextField("Search", text: filter.filter)
-            List {
-                ForEach(filter.filteredItems) { item in
-                    Text(item.title)
+            ScrollView {
+                LazyVGrid(columns: columns) {
+                    ForEach(filter.filteredItems) { item in
+                        HStack {
+                            Text(item.title)
+                            Spacer()
+                        }
+                    }
                 }
             }
             Text("\(filter.filteredItems.count) items")
@@ -180,11 +183,15 @@ struct ContentView: View {
                 .padding()
             ListView(provider: provider)
                 .padding()
-            Button {
-                print("increment counter")
-                counter = counter + 1
-            } label: {
-                Text("Click")
+            VStack {
+                Button {
+                    print("increment counter")
+                    counter = counter + 1
+                } label: {
+                    Text("Click")
+                }
+                Text("Increments a counter; shouldn't reload the list, or recreate any list state")
+                    .font(.caption)
             }
             .padding()
         }
