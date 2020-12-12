@@ -14,18 +14,16 @@ class LazyFilter<T>: ObservableObject where T: Hashable {
     var subscription: Cancellable?
 
     @Published var filter: String = ""
-    @Published var _sortDescriptor: SortDescriptor<T> = { lhs, rhs in true }
-
-    @Published var filteredItems: [T] = []
-    var sortDescriptor: Binding<SortDescriptor<T>>!
+    @Published var sortDescriptor: SortDescriptor<T> = { lhs, rhs in true }
+    @Published var items: [T] = []
 
     init(items: Published<[T]>.Publisher,
          test: @escaping (_ filter: String, _ item: T) -> Bool,
          initialSortDescriptor: @escaping SortDescriptor<T>) {
         print("LazyFilter.init")
-        __sortDescriptor = Published(initialValue: initialSortDescriptor)
+        _sortDescriptor = Published(initialValue: initialSortDescriptor)
         subscription = items
-            .combineLatest($filter, $_sortDescriptor)
+            .combineLatest($filter, $sortDescriptor)
             .debounce(for: 0.2, scheduler: DispatchQueue.main)
             .receive(on: queue)
             .map { items, filter, sortDescriptor in
@@ -35,12 +33,7 @@ class LazyFilter<T>: ObservableObject where T: Hashable {
                     .sorted(by: sortDescriptor)
             }
             .receive(on: DispatchQueue.main)
-            .assign(to: \.filteredItems, on: self)
-        sortDescriptor = Binding {
-            return self._sortDescriptor
-        } set: { value in
-            self._sortDescriptor = value
-        }
+            .assign(to: \.items, on: self)
     }
 
 }

@@ -13,7 +13,7 @@ struct ListView: View {
     @StateObject var filter: LazyFilter<ListItem>
     @State var sort: SortIdentifier = .titleAscending {
         didSet {
-            filter.sortDescriptor.wrappedValue = sort.sortDescriptor
+            filter.sortDescriptor = sort.sortDescriptor
             print("sort = \(sort)")
         }
     }
@@ -32,7 +32,7 @@ struct ListView: View {
     var body: some View {
         ScrollView {
             LazyVGrid(columns: columns, spacing: 8.0) {
-                ForEach(filter.filteredItems) { item in
+                ForEach(filter.items) { item in
                     HStack {
                         Text(item.title)
                         Spacer()
