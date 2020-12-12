@@ -113,16 +113,16 @@
 				D8005AE82583C2260001BE2C /* Assets.xcassets */,
 				D8005AE62583C2230001BE2C /* ContentView.swift */,
 				D8005AED2583C2260001BE2C /* Info.plist */,
+				D88DF5E125845D440068404E /* ItemProvider.swift */,
+				D88DF5F0258460580068404E /* LazyFilter.swift */,
 				D8005AEE2583C2260001BE2C /* List_Filter.entitlements */,
 				D8005AE42583C2230001BE2C /* List_FilterApp.swift */,
+				D88DF5E62584600A0068404E /* ListItem.swift */,
 				D88DF5D725845CB10068404E /* ListView.swift */,
 				D8005AEA2583C2260001BE2C /* Preview Content */,
-				D88DF5DC25845CE00068404E /* SortIdentifier.swift */,
-				D88DF5E125845D440068404E /* ItemProvider.swift */,
-				D88DF5E62584600A0068404E /* ListItem.swift */,
 				D88DF5EB258460390068404E /* SearchField.swift */,
-				D88DF5F0258460580068404E /* LazyFilter.swift */,
 				D88DF5F5258460860068404E /* SortDescriptor.swift */,
+				D88DF5DC25845CE00068404E /* SortIdentifier.swift */,
 			);
 			path = "List Filter";
 			sourceTree = "<group>";
