@@ -8,6 +8,43 @@
 import Combine
 import SwiftUI
 
+struct SearchField: NSViewRepresentable {
+
+    class Coordinator: NSObject, NSSearchFieldDelegate {
+        var parent: SearchField
+
+        init(_ parent: SearchField) {
+            self.parent = parent
+        }
+
+        func controlTextDidChange(_ notification: Notification) {
+            guard let searchField = notification.object as? NSSearchField else {
+                print("Unexpected control in update notification")
+                return
+            }
+            self.parent.search = searchField.stringValue
+        }
+
+    }
+
+    @Binding var search: String
+
+    func makeNSView(context: Context) -> NSSearchField {
+        return NSSearchField(frame: .zero)
+    }
+
+    func updateNSView(_ searchField: NSSearchField, context: Context) {
+        searchField.stringValue = search
+        searchField.delegate = context.coordinator
+    }
+
+    func makeCoordinator() -> Coordinator {
+        return Coordinator(self)
+    }
+
+}
+
+
 // N.B. These need to be classes to avoid copy-by-value.
 class ListItem: Identifiable, Hashable {
 
@@ -28,7 +65,8 @@ class ListItem: Identifiable, Hashable {
 }
 
 func items() -> [ListItem] {
-    let range = 0..<100000
+    let range = 0..<6000
+//    let range = 0..<100000
     let items = range.map { _ in ListItem(title: UUID().uuidString) }
     return items
 }
@@ -60,20 +98,20 @@ class LazyFilter<T>: ObservableObject where T: Hashable {
     let queue = DispatchQueue(label: "LazyFilter.queue")
     var subscription: Cancellable?
 
-    @Published var _filter: String = ""
+    @Published var filter: String = ""
     @Published var _sortDescriptor: SortDescriptor<T> = { lhs, rhs in true }
 
     @Published var filteredItems: [T] = []
-    var filter: Binding<String>!
     var sortDescriptor: Binding<SortDescriptor<T>>!
 
     init(items: Published<[T]>.Publisher,
          test: @escaping (_ filter: String, _ item: T) -> Bool,
          initialSortDescriptor: @escaping SortDescriptor<T>) {
+        print("LazyFilter.init")
         __sortDescriptor = Published(initialValue: initialSortDescriptor)
         subscription = items
-            .combineLatest($_filter, $_sortDescriptor)
-            .debounce(for: 0.1, scheduler: DispatchQueue.main)
+            .combineLatest($filter, $_sortDescriptor)
+            .debounce(for: 0.2, scheduler: DispatchQueue.main)
             .receive(on: queue)
             .map { items, filter, sortDescriptor in
                 print("regenerating list")
@@ -83,11 +121,6 @@ class LazyFilter<T>: ObservableObject where T: Hashable {
             }
             .receive(on: DispatchQueue.main)
             .assign(to: \.filteredItems, on: self)
-        filter = Binding {
-            return self._filter
-        } set: { value in
-            self._filter = value
-        }
         sortDescriptor = Binding {
             return self._sortDescriptor
         } set: { value in
@@ -119,6 +152,19 @@ extension SortIdentifier {
 
 }
 
+extension SortIdentifier: CustomStringConvertible {
+
+    var description: String {
+        switch self {
+        case .titleAscending:
+            return "Title, Ascending"
+        case .titleDescending:
+            return "Title, Descending"
+        }
+    }
+
+}
+
 struct ListView: View {
 
     var provider: ItemProvider
@@ -142,32 +188,38 @@ struct ListView: View {
     ]
 
     var body: some View {
-        VStack {
-            HStack {
-                Button {
-                    provider.reload()
-                } label: {
-                    Text("Reload")
-                }
-                Button {
-                    sort = sort == .titleAscending ? .titleDescending : .titleAscending
-                } label: {
-                    Text("Change Sort")
-                }
-            }
-            TextField("Search", text: filter.filter)
-            ScrollView {
-                LazyVGrid(columns: columns) {
-                    ForEach(filter.filteredItems) { item in
-                        HStack {
-                            Text(item.title)
-                            Spacer()
-                        }
+        ScrollView {
+            LazyVGrid(columns: columns, spacing: 8.0) {
+                ForEach(filter.filteredItems) { item in
+                    HStack {
+                        Text(item.title)
+                        Spacer()
                     }
                 }
             }
-            Text("\(filter.filteredItems.count) items")
+            .padding()
         }
+        .background(Color(NSColor.controlBackgroundColor))
+        .toolbar(content: {
+            ToolbarItem {
+                Button {
+                    provider.reload()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+            }
+            ToolbarItem {
+                Button {
+                    sort = sort == .titleAscending ? .titleDescending : .titleAscending
+                } label: {
+                    Image(systemName: "arrow.up.arrow.down")
+                }
+            }
+            ToolbarItem {
+                SearchField(search: $filter.filter)
+                    .frame(width: 200)
+            }
+        })
     }
 
 }
@@ -178,22 +230,9 @@ struct ContentView: View {
     @StateObject var provider = ItemProvider()
 
     var body: some View {
-        VStack {
-            Text("count = \(counter)")
-                .padding()
+//        VStack {
             ListView(provider: provider)
-                .padding()
-            VStack {
-                Button {
-                    print("increment counter")
-                    counter = counter + 1
-                } label: {
-                    Text("Click")
-                }
-                Text("Increments a counter; shouldn't reload the list, or recreate any list state")
-                    .font(.caption)
-            }
-            .padding()
-        }
+//                .padding()
+//        }
     }
 }
